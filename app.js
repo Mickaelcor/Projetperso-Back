@@ -8,10 +8,15 @@ app.use(bodyParser.urlencoded({ extended: false }));
 
 // Utiliser Bcrypt pour hacher le mdp
 const bcrypt = require('bcrypt');
+const bcryptSalt = bcrypt.genSaltSync(10);
 
 // Pour recuper les data dans un autre dossier (API )
+app.use(express.json());
 const cors = require('cors');
-app.use(cors());
+app.use(cors({
+    credentials: true,
+    origin: 'http://localhost:3000',
+}));
 
 // Création de token et cryptage mot de passe
 const cookieParser = require('cookie-parser');
@@ -48,7 +53,7 @@ const methodOverride = require('method-override');
 app.use(methodOverride('_method'));
 
 //Déclarer les const models
-const User = require('./Models/User');
+const User = require('./Models/User.js');
 const Concert = require('./Models/Concert');
 
 // Définir l'endroit de stockage d'image
@@ -81,61 +86,61 @@ app.post('/upload', function (req, res) {
 
 
 // Pour l'inscription
-app.post('/api/signup', function (req, res) {
-    const Data = new User({
-        username: req.body.username,
-        prenom: req.body.prenom,
-        nom: req.body.nom,
-        email: req.body.email,
-        password: bcrypt.hashSync(req.body.password, 10),
-        age: req.body.age,
-        tel: req.body.tel,
-        admin: false,
-    })
-    Data.save().then(() => {
-        console.log("User saved"),
-            res.redirect("http://localhost:3000/login")
-    })
-        .catch(err => console.log(err))
-});
+// app.post('/api/signup', function (req, res) {
+//     const Data = new User({
+//         username: req.body.username,
+//         prenom: req.body.prenom,
+//         nom: req.body.nom,
+//         email: req.body.email,
+//         password: bcrypt.hashSync(req.body.password, 10),
+//         age: req.body.age,
+//         tel: req.body.tel,
+//         admin: false,
+//     })
+//     Data.save().then(() => {
+//         console.log("User saved"),
+//             res.redirect("http://localhost:3000/login")
+//     })
+//         .catch(err => console.log(err))
+// });
 
 
 // Pour le login
-app.post('/api/login', function (req, res) {
-    User.findOne({
-        email: req.body.email
-    }).then(user => {
-        if (!user) {
-            res.status(404).send('Email Invalid !');
-        }
-        // Authentification JWT token
-        const accessToken = createToken(user);
-        res.cookie("access-token", accessToken, { maxAge: 60 * 60 * 24 * 30 * 12, httpOnly: true });
+// app.post('/api/login', function (req, res) {
+//     User.findOne({
+//         email: req.body.email
+//     }).then(user => {
+//         if (!user) {
+//             res.status(404).send('Email Invalid !');
+//         }
+//         // Authentification JWT token
+//         const accessToken = createToken(user);
+//         res.cookie("access-token", accessToken, { maxAge: 60 * 60 * 24 * 30 * 12, httpOnly: true });
 
-        if (!bcrypt.compareSync(req.body.password, user.password)) {
-            res.status(404).send('Password Invalid !');
-        }
-        res.redirect("http://localhost:3000/user/" + user.id)
-        // res.json("LOGGED IN");
+//         if (!bcrypt.compareSync(req.body.password, user.password)) {
+//             res.status(404).send('Password Invalid !');
+//         }
+//         res.redirect("http://localhost:3000/user/" + user.id)
+//         // res.json("LOGGED IN");
 
-    }).catch(err => { (console.error)(err) });
-});
+//     }).catch(err => { (console.error)(err) });
+// });
 
-// Pour afficher tous les users
-app.get('/allusers', function (req, res) {
-    User.find().then(data => {
-        res.json({ data: data })
-    }).catch(err => { console.log(err) });
-});
+// // Pour afficher tous les users
+// app.get('/allusers', function (req, res) {
+//     User.find().then(data => {
+//         res.json({ data: data })
+//     }).catch(err => { console.log(err) });
+// });
 
-// Pour afficher le compte utilisateur
-app.get('/user/:id', function (req, res) {
-    User.findOne({
-        _id: req.params.id
-    }).then(data => {
-        res.json({ data: data })
-    }).catch(err => { console.log(err) });
-});
+// // Pour afficher le compte utilisateur
+// app.get('/user/:id', function (req, res) {
+//     User.findOne({
+//         _id: req.params.id
+//     }).then(data => {
+//         res.json({ data: data })
+//     }).catch(err => { console.log(err) });
+// });
 
 
 // Pour ajouter les spectacles
@@ -180,13 +185,39 @@ app.get('/oneconcert/:id', function (req, res) {
 
 
 
+// REGISTER
+
+app.get('/test', function (req, res) {
+    res.json('test ok')
+})
+
+app.post('/register', async (req, res) => {
+    const { name, email, password } = req.body;
+
+    try {
+        const userDoc = await User.create({
+            name,
+            email,
+            password: bcrypt.hashSync(password, bcryptSalt),
+        });
+        res.json(userDoc);
+    } catch (e) {
+        res.status(422).json(e);
+    }
+})
 
 
+// LOGIN
 
-
-
-
-
+app.post('/login', async (req, res) => {
+    const { email, password } = req.body;
+    const userDoc = await User.findOne({ email });
+    if (userDoc) {
+        res.json('found');
+    } else {
+        res.json('not found');
+    }
+});
 
 
 
