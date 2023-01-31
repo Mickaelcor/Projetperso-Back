@@ -1,5 +1,13 @@
-// Utiliser express
+// Déclaration des const
 const express = require('express');
+const cors = require('cors');
+const mongoose = require('mongoose');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+//Déclarer les const models
+const User = require('./Models/User.js');
+const Concert = require('./Models/Concert');
+const cookieParser = require('cookie-parser');
 const app = express();
 
 // Utiliser body parser
@@ -7,20 +15,18 @@ const bodyParser = require('body-parser');
 app.use(bodyParser.urlencoded({ extended: false }));
 
 // Utiliser Bcrypt pour hacher le mdp
-const bcrypt = require('bcrypt');
 const bcryptSalt = bcrypt.genSaltSync(10);
+const jwtSecret = 'fasefraw4r5r3wq45wdfqw34twdfq';
 
 // Pour recuper les data dans un autre dossier (API )
 app.use(express.json());
-const cors = require('cors');
+app.use(cookieParser());
 app.use(cors({
     credentials: true,
     origin: 'http://localhost:3000',
 }));
 
 // Création de token et cryptage mot de passe
-const cookieParser = require('cookie-parser');
-app.use(cookieParser());
 const { createToken, validateToken } = require('./JWT')
 
 // Import de moment pour gerer l'affichage des dates
@@ -38,8 +44,6 @@ require('dotenv').config();
 var port = process.env.PORT
 var dbURL = process.env.DATABASE_URL;
 
-
-const mongoose = require('mongoose');
 // Pas de requete SQL (strictQuery)
 mongoose.set("strictQuery", false);
 mongoose.connect(dbURL, {
@@ -52,9 +56,7 @@ mongoose.connect(dbURL, {
 const methodOverride = require('method-override');
 app.use(methodOverride('_method'));
 
-//Déclarer les const models
-const User = require('./Models/User.js');
-const Concert = require('./Models/Concert');
+
 
 // Définir l'endroit de stockage d'image
 const stockage = multer.diskStorage({
@@ -213,13 +215,37 @@ app.post('/login', async (req, res) => {
     const { email, password } = req.body;
     const userDoc = await User.findOne({ email });
     if (userDoc) {
-        res.json('found');
+        const passOk = bcrypt.compareSync(password, userDoc.password)
+        if (passOk) {
+            jwt.sign({
+                email: userDoc.email,
+                id: userDoc._id
+            }, jwtSecret, {}, (err, token) => {
+                if (err) throw err;
+                res.cookie('token', token).json(userDoc);
+            });
+        } else {
+            res.status(422).json('pass not ok');
+        }
     } else {
         res.json('not found');
     }
 });
 
+// PROFILE
 
+app.get('/profile', (req, res) => {
+    const { token } = req.cookies;
+    if (token) {
+        jwt.verify(token, jwtSecret, {}, async (err, userData) => {
+            if (err) throw err;
+            const { name, email, _id } = await User.findById(userData.id)
+            res.json({ name, email, _id });
+        })
+    } else {
+        res.json(null);
+    }
+})
 
 
 
