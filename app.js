@@ -247,7 +247,11 @@ app.get('/profile', (req, res) => {
     }
 })
 
+// LOGOUT
 
+app.post('/logout', (req, res) => {
+    res.cookie('token', '').json(true);
+});
 
 
 
