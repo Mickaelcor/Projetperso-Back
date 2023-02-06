@@ -1,13 +1,24 @@
 // Déclaration des const
 const express = require('express');
 const cors = require('cors');
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-//Déclarer les const models
 const User = require('./Models/User.js');
-const Concert = require('./Models/Concert');
+const Place = require('./Models/Place.js');
 const cookieParser = require('cookie-parser');
+// Pour ajout photo par lien 
+const imageDownloader = require('image-downloader');
+// Pour upload image
+const multer = require('multer');
+// Pour renommer les fichiers sur le serveur
+const fs = require('fs');
+
+// Connexion à la base de donnée Mangodb Atlas
+require('dotenv').config();
+// .config permet d'utiliser le process.env
+var port = process.env.PORT
+var dbURL = process.env.DATABASE_URL;
 const app = express();
 
 // Utiliser body parser
@@ -21,28 +32,18 @@ const jwtSecret = 'fasefraw4r5r3wq45wdfqw34twdfq';
 // Pour recuper les data dans un autre dossier (API )
 app.use(express.json());
 app.use(cookieParser());
+app.use('/uploads', express.static(__dirname + '/uploads'));
 app.use(cors({
     credentials: true,
     origin: 'http://localhost:3000',
 }));
 
-// Création de token et cryptage mot de passe
-const { createToken, validateToken } = require('./JWT')
 
 // Import de moment pour gerer l'affichage des dates
 const moment = require('moment');
 moment().format('Do MMMM YYYY');
 
-// Pour l'import d'image dans la base de donnée (via url)
-const multer = require('multer');
-// Dossier rendu public pour stockage d'image
-app.use(express.static('public'))
 
-// Connexion à la base de donnée Mangodb Atlas
-require('dotenv').config();
-// .config permet d'utiliser le process.env
-var port = process.env.PORT
-var dbURL = process.env.DATABASE_URL;
 
 // Pas de requete SQL (strictQuery)
 mongoose.set("strictQuery", false);
@@ -55,136 +56,6 @@ mongoose.connect(dbURL, {
 // Methode Override pour utiliser PUT et DELETE
 const methodOverride = require('method-override');
 app.use(methodOverride('_method'));
-
-
-
-// Définir l'endroit de stockage d'image
-const stockage = multer.diskStorage({
-    destination: (req, file, callback) => {
-        callback(null, 'puclic');
-    },
-    filename: (req, file, callback) => {
-        callback(null, Date.now() + '-' + file.originalname)
-    }
-});
-
-const upload = multer({ stockage }).array('file')
-
-// Route pour upload image
-app.post('/upload', function (req, res) {
-    upload(req, res, (err) => {
-
-        if (err) {
-            return res.status(500).json(err)
-        }
-        req.files.map(file => {
-            console.log(req.files)
-        })
-
-        return res.status(200).json(req.files)
-    });
-})
-
-
-
-// Pour l'inscription
-// app.post('/api/signup', function (req, res) {
-//     const Data = new User({
-//         username: req.body.username,
-//         prenom: req.body.prenom,
-//         nom: req.body.nom,
-//         email: req.body.email,
-//         password: bcrypt.hashSync(req.body.password, 10),
-//         age: req.body.age,
-//         tel: req.body.tel,
-//         admin: false,
-//     })
-//     Data.save().then(() => {
-//         console.log("User saved"),
-//             res.redirect("http://localhost:3000/login")
-//     })
-//         .catch(err => console.log(err))
-// });
-
-
-// Pour le login
-// app.post('/api/login', function (req, res) {
-//     User.findOne({
-//         email: req.body.email
-//     }).then(user => {
-//         if (!user) {
-//             res.status(404).send('Email Invalid !');
-//         }
-//         // Authentification JWT token
-//         const accessToken = createToken(user);
-//         res.cookie("access-token", accessToken, { maxAge: 60 * 60 * 24 * 30 * 12, httpOnly: true });
-
-//         if (!bcrypt.compareSync(req.body.password, user.password)) {
-//             res.status(404).send('Password Invalid !');
-//         }
-//         res.redirect("http://localhost:3000/user/" + user.id)
-//         // res.json("LOGGED IN");
-
-//     }).catch(err => { (console.error)(err) });
-// });
-
-// // Pour afficher tous les users
-// app.get('/allusers', function (req, res) {
-//     User.find().then(data => {
-//         res.json({ data: data })
-//     }).catch(err => { console.log(err) });
-// });
-
-// // Pour afficher le compte utilisateur
-// app.get('/user/:id', function (req, res) {
-//     User.findOne({
-//         _id: req.params.id
-//     }).then(data => {
-//         res.json({ data: data })
-//     }).catch(err => { console.log(err) });
-// });
-
-
-// Pour ajouter les spectacles
-app.post('/api/newconcert', function (req, res) {
-
-    // Pour modifier la forme des dates avec moment
-    const date_debut = moment(req.body.date_debut);
-    const date_fin = moment(req.body.date_fin);
-
-
-    const Data = new Concert({
-        titre: req.body.titre,
-        artiste: req.body.artiste,
-        description: req.body.description,
-        date_debut: req.body.date_debut,
-        date_fin: req.body.date_fin,
-        nbr_place: req.body.nbr_place,
-        reference: req.body.reference,
-    })
-    Data.save().then(() => {
-        console.log("Spectacle saved"),
-            res.redirect("http://localhost:3000/allconcerts")
-    })
-        .catch(err => console.log(err))
-});
-
-// Pour afficher tous les spectacles
-app.get('/allconcerts', function (req, res) {
-    Concert.find().then(data => {
-        res.json({ data: data })
-    }).catch(err => { console.log(err) });
-});
-
-// Pour afficher un seul spectacle
-app.get('/oneconcert/:id', function (req, res) {
-    Concert.findOne({
-        _id: req.params.id
-    }).then(data => {
-        res.json({ data: data })
-    }).catch(err => { console.log(err) });
-});
-
 
 
 // REGISTER
@@ -206,7 +77,7 @@ app.post('/register', async (req, res) => {
     } catch (e) {
         res.status(422).json(e);
     }
-})
+});
 
 
 // LOGIN
@@ -215,7 +86,7 @@ app.post('/login', async (req, res) => {
     const { email, password } = req.body;
     const userDoc = await User.findOne({ email });
     if (userDoc) {
-        const passOk = bcrypt.compareSync(password, userDoc.password)
+        const passOk = bcrypt.compareSync(password, userDoc.password);
         if (passOk) {
             jwt.sign({
                 email: userDoc.email,
@@ -239,25 +110,101 @@ app.get('/profile', (req, res) => {
     if (token) {
         jwt.verify(token, jwtSecret, {}, async (err, userData) => {
             if (err) throw err;
-            const { name, email, _id } = await User.findById(userData.id)
+            const { name, email, _id } = await User.findById(userData.id);
             res.json({ name, email, _id });
-        })
+        });
     } else {
         res.json(null);
     }
-})
+});
 
 // LOGOUT
-
+//permet de tuer le token
 app.post('/logout', (req, res) => {
     res.cookie('token', '').json(true);
 });
 
 
+// Ajout de photo par lien avec le package image downloader
+app.post('/upload-by-link', async (req, res) => {
+    const { link } = req.body;
+    const newName = 'photo' + Date.now() + '.jpg';
+    await imageDownloader.image({
+        url: link,
+        dest: __dirname + '/uploads/' + newName,
+    });
+    res.json(newName);
+});
 
+// Ajout de photo par Upload
+const photosMiddleware = multer({ dest: 'uploads/' });
+app.post('/upload', photosMiddleware.array('photos', 100), (req, res) => {
+    const uploadedFiles = [];
+    for (let i = 0; i < req.files.length; i++) {
+        const { path, originalname } = req.files[i];
+        const parts = originalname.split('.');
+        const ext = parts[parts.length - 1];
+        const newPath = path + '.' + ext;
+        fs.renameSync(path, newPath);
+        uploadedFiles.push(newPath.replace('uploads/', ''));
+    }
+    res.json(uploadedFiles);
+});
 
+// Ajout d'un nouveau concert
+app.post('/places', (req, res) => {
+    // On recupere l'user afin de savoir qui poste le concert
+    const { token } = req.cookies;
+    const {
+        title, address, addedPhotos, description,
+        perks, extraInfo, checkIn, checkOut, maxGuests,
+    } = req.body;
+    jwt.verify(token, jwtSecret, {}, async (err, userData) => {
+        if (err) throw err;
+        const placeDoc = await Place.create({
+            owner: userData.id,
+            title, address, photos: addedPhotos, description,
+            perks, extraInfo, checkIn, checkOut, maxGuests,
+        });
+        res.json(placeDoc);
+    });
+});
 
+// Recuperer des concert ajoutés par l'user connecté
+app.get('/places', (req, res) => {
+    const { token } = req.cookies;
+    jwt.verify(token, jwtSecret, {}, async (err, userData) => {
+        const { id } = userData;
+        res.json(await Place.find({ owner: id }));
+    });
+});
 
+// Recuperer les details du concert àjouter par l'user connécté afin de l'afficher dans une nouvelle page
+app.get('/places/:id', async (req, res) => {
+    const { id } = req.params;
+    res.json(await Place.findById(id));
+});
+
+// Pour modifier les concert deja ajouter
+app.put('/places', async (req, res) => {
+    const { token } = req.cookies;
+    const {
+        id, title, address, addedPhotos, description,
+        perks, extraInfo, checkIn, checkOut, maxGuests,
+    } = req.body;
+    jwt.verify(token, jwtSecret, {}, async (err, userData) => {
+        if (err) throw err;
+        const placeDoc = await Place.findById(id);
+        if (userData.id === placeDoc.owner.toString()) {
+            placeDoc.set({
+                title, address, photos: addedPhotos, description,
+                perks, extraInfo, checkIn, checkOut, maxGuests,
+            });
+            await placeDoc.save();
+            res.json('ok');
+        }
+    });
+});
 
 // déclarer le serveur
 const server = app.listen(port, function () {
