@@ -6,6 +6,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('./Models/User.js');
 const Place = require('./Models/Place.js');
+const Booking = require('./Models/Booking.js');
 const cookieParser = require('cookie-parser');
 // Pour ajout photo par lien 
 const imageDownloader = require('image-downloader');
@@ -32,12 +33,22 @@ const jwtSecret = 'fasefraw4r5r3wq45wdfqw34twdfq';
 // Pour recuper les data dans un autre dossier (API )
 app.use(express.json());
 app.use(cookieParser());
+// Pour mettre les photos dans le dossier uploads
 app.use('/uploads', express.static(__dirname + '/uploads'));
 app.use(cors({
     credentials: true,
     origin: 'http://localhost:3000',
 }));
 
+// Fonction pour recuperer les UserData avec le token de connexion
+function getUserDataFromReq(req) {
+    return new Promise((resolve, reject) => {
+        jwt.verify(req.cookies.token, jwtSecret, {}, async (err, userData) => {
+            if (err) throw err;
+            resolve(userData);
+        });
+    });
+}
 
 // Import de moment pour gerer l'affichage des dates
 const moment = require('moment');
@@ -210,10 +221,32 @@ app.put('/places', async (req, res) => {
 // Creation page acceuil et afficher tout les concert
 app.get('/places', async (req, res) => {
     res.json(await Place.find());
+});
+
+
+// Creation table Booking
+app.post('/bookings', async (req, res) => {
+    const userData = await getUserDataFromReq(req);
+    const {
+        place, checkIn, numberOfGuests, name, phone, price,
+    } = req.body;
+    Booking.create({
+        place, checkIn, numberOfGuests, name, phone, price,
+        user: userData.id,
+    }).then((doc) => {
+        res.json(doc);
+    }).catch((err) => {
+        throw err;
+    })
+});
+
+
+
+// Recuperer toutes les reservation d'un compte
+app.get('/bookings', async (req, res) => {
+    const userData = await getUserDataFromReq(req);
+    res.json(await Booking.find({ user: userData.id }).populate('place')); // populate pour chercher place dans le model Booking et ref au model Place
 })
-
-
-
 
 
 
