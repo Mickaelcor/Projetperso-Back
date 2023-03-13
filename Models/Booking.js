@@ -4,7 +4,6 @@ const bookingSchema = new mongoose.Schema({
     // Ref:'Place' afin de chercher la réference du concert dans le model 'Place'
     place: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Place' },
     user: { type: mongoose.Schema.Types.ObjectId, required: true },
-    checkIn: { type: Date, required: true },
     name: { type: String, required: true },
     phone: { type: String, required: true },
     price: Number,

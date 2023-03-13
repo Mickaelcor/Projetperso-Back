@@ -8,10 +8,11 @@ const placeSchema = new mongoose.Schema({
     description: String,
     perks: [String],
     extraInfo: String,
-    checkIn: Number,
+    checkIn: String,
     checkOut: Number,
     maxGuests: Number,
     price: Number,
+    dateConcert: Date,
 });
 
 const PlaceModel = mongoose.model('Place', placeSchema);

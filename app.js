@@ -169,14 +169,14 @@ app.post('/places', (req, res) => {
     // On recupere les données rentrer par l'utilisateur 
     const {
         title, address, addedPhotos, description, price,
-        perks, extraInfo, checkIn, checkOut, maxGuests,
+        perks, extraInfo, checkIn, checkOut, maxGuests, dateConcert,
     } = req.body;
     jwt.verify(token, jwtSecret, {}, async (err, userData) => {
         if (err) throw err;
         const placeDoc = await Place.create({
             owner: userData.id, price,
             title, address, photos: addedPhotos, description,
-            perks, extraInfo, checkIn, checkOut, maxGuests,
+            perks, extraInfo, checkIn, checkOut, maxGuests, dateConcert,
         });
         res.json(placeDoc);
     });
@@ -202,7 +202,7 @@ app.put('/places', async (req, res) => {
     const { token } = req.cookies;
     const {
         id, title, address, addedPhotos, description,
-        perks, extraInfo, checkIn, checkOut, maxGuests, price,
+        perks, extraInfo, checkIn, checkOut, maxGuests, price, dateConcert,
     } = req.body;
     jwt.verify(token, jwtSecret, {}, async (err, userData) => {
         if (err) throw err;
@@ -210,7 +210,7 @@ app.put('/places', async (req, res) => {
         if (userData.id === placeDoc.owner.toString()) {
             placeDoc.set({
                 title, address, photos: addedPhotos, description,
-                perks, extraInfo, checkIn, checkOut, maxGuests, price,
+                perks, extraInfo, checkIn, checkOut, maxGuests, price, dateConcert,
             });
             await placeDoc.save();
             res.json('ok');
@@ -228,10 +228,10 @@ app.get('/places', async (req, res) => {
 app.post('/bookings', async (req, res) => {
     const userData = await getUserDataFromReq(req);
     const {
-        place, checkIn, numberOfGuests, name, phone, price,
+        place, maxGuests, numberOfGuests, name, phone, price,
     } = req.body;
     Booking.create({
-        place, checkIn, numberOfGuests, name, phone, price,
+        place, maxGuests, numberOfGuests, name, phone, price,
         user: userData.id,
     }).then((doc) => {
         res.json(doc);
@@ -247,7 +247,6 @@ app.get('/bookings', async (req, res) => {
     const userData = await getUserDataFromReq(req);
     res.json(await Booking.find({ user: userData.id }).populate('place')); // populate pour chercher place dans le model Booking et ref au model Place
 })
-
 
 
 
